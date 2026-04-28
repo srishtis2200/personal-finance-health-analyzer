@@ -47,9 +47,22 @@ print("\nScaling done!")
 
 #model training and comparision
 models = {
-    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-    'Random Forest':       RandomForestClassifier(n_estimators=100, random_state=42),
-    'XGBoost':             XGBClassifier(n_estimators=100, random_state=42, eval_metric='mlogloss')
+    'Logistic Regression': LogisticRegression(
+        max_iter=1000,
+        random_state=42,
+        class_weight='balanced'
+    ),
+    'Random Forest': RandomForestClassifier(
+        n_estimators=100,
+        random_state=42,
+        class_weight='balanced'
+    ),
+    'XGBoost': XGBClassifier(
+        n_estimators=100,
+        random_state=42,
+        eval_metric='mlogloss',
+        scale_pos_weight=3
+    )
 }
 
 results = {}
