@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 #load processed dataset
-df = pd.read_csv('data/processed/finance_processed.csv')
+df = pd.read_csv('data/processed/finance_processed_raw.csv')
 
 print("Shape:", df.shape)
 print("\nLabel distribution:")
