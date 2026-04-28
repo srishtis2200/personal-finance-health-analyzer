@@ -1,4 +1,4 @@
-#Personal Finance Health Analyzer
+##Personal Finance Health Analyzer
 
 An ML + GenAI powered web app that scores your financial health.
 
