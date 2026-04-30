@@ -45,8 +45,8 @@ Dashboard + History (app/)
 | Environment | Python 3.12, virtualenv |
 
 ---
-
 ## 📁 Folder Structure
+
 Personal_Finance_Health_Analyzer/
 │
 ├── data/
