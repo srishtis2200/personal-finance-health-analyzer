@@ -30,7 +30,7 @@ y_encoded = le.fit_transform(y)
 
 print("\nClasses:", le.classes_)
 
-# ── Train Test Split ───────────────────────────────────────
+#train test split
 x_train, x_test, y_train, y_test = train_test_split(
     x, y_encoded,
     test_size=0.2,
@@ -41,7 +41,7 @@ x_train, x_test, y_train, y_test = train_test_split(
 print(f"\nTraining samples: {len(x_train)}")
 print(f"Testing samples:  {len(x_test)}")
 
-# ── Models ─────────────────────────────────────────────────
+#model training
 # LR needs scaling → Pipeline handles it internally
 # RF and XGBoost are tree models → no scaling needed
 models = {
@@ -69,13 +69,13 @@ models = {
     )
 }
 
-# ── Cross Validation ───────────────────────────────────────
+#cross validation
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
 results    = {}
 cv_results = {}
 
-# ── Training and Evaluation ────────────────────────────────
+#training and evaluation
 for name, model in models.items():
     print(f"\n{'='*60}")
     print(f"Model: {name}")
@@ -98,7 +98,7 @@ for name, model in models.items():
     else:
         model.fit(x_train, y_train)
 
-    # Predict on test data
+    #predict on test data
     y_pred = model.predict(x_test)
 
     test_f1 = f1_score(y_test, y_pred, average='weighted')
@@ -113,7 +113,7 @@ for name, model in models.items():
     print("\nConfusion Matrix:")
     print(confusion_matrix(y_test, y_pred))
 
-    # Feature importance for tree models
+    #feature importance for tree models
     if name == 'Random Forest':
         importance_df = pd.DataFrame({
             'feature':    x.columns,
@@ -130,7 +130,7 @@ for name, model in models.items():
         print("\nTop 5 Important Features:")
         print(importance_df.head())
 
-# ── Select Best Model based on CV ─────────────────────────
+#select best model based on CV
 best_model_name = max(cv_results, key=cv_results.get)
 best_model      = models[best_model_name]
 
@@ -139,7 +139,7 @@ print(f"✅ Best Model (CV): {best_model_name}")
 print(f"✅ CV F1:           {cv_results[best_model_name]:.4f}")
 print(f"✅ Test F1:         {results[best_model_name]:.4f}")
 
-# ── Retrain Best Model on Full Data ───────────────────────
+#retrain best model on full data
 print("\nRetraining best model on full dataset...")
 if best_model_name == 'XGBoost':
     sample_weights = compute_sample_weight('balanced', y_encoded)
@@ -147,7 +147,7 @@ if best_model_name == 'XGBoost':
 else:
     best_model.fit(x, y_encoded)
 
-# ── Save Artifacts ─────────────────────────────────────────
+#save artefacts
 os.makedirs('model', exist_ok=True)
 
 joblib.dump(best_model, 'model/finance_model.pkl')
