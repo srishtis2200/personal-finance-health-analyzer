@@ -1,0 +1,25 @@
+# Virtual environment - never push this (huge folder)
+venv/
+
+# Environment variables - contains API keys
+.env
+
+# Trained model files
+*.pkl
+
+# Raw data - too large for GitHub
+data/raw/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# VS Code settings
+.vscode/
+
+# Windows system files
+Thumbs.db
+desktop.ini
