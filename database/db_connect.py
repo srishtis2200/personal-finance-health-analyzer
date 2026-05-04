@@ -1,8 +1,5 @@
-# =============================================================
 # Personal Finance Health Analyzer — Phase 4
-# File: database/db_connect.py
 # Handles all MySQL interactions: connect, insert, fetch
-# =============================================================
 
 import os
 import mysql.connector
@@ -14,9 +11,7 @@ from datetime import datetime
 load_dotenv()
 
 
-# -------------------------------------------------------------
-# 1. Connection helper
-# -------------------------------------------------------------
+# 1. connection helper
 
 def get_connection():
     """
@@ -46,9 +41,7 @@ def get_connection():
         return None
 
 
-# -------------------------------------------------------------
-# 2. Insert a new finance record
-# -------------------------------------------------------------
+#inserting a new financial record
 
 def insert_record(user_name: str, month_year: str, inputs: dict, result: dict) -> bool:
     """
@@ -103,8 +96,8 @@ def insert_record(user_name: str, month_year: str, inputs: dict, result: dict) -
             prob_critical   = VALUES(prob_critical),
             created_at      = CURRENT_TIMESTAMP
     """
-    # ON DUPLICATE KEY UPDATE allows re-submitting the same month
-    # (overwrites previous entry for that user+month)
+    #on duplicate key update allows re-submitting the same month
+    #overwrites previous entry for that user+month
 
     probs = result.get("probabilities", {})
 
@@ -143,9 +136,7 @@ def insert_record(user_name: str, month_year: str, inputs: dict, result: dict) -
         return False
 
 
-# -------------------------------------------------------------
-# 3. Fetch full history for a user (for History page chart)
-# -------------------------------------------------------------
+# 3. fetch full history for a user (for History page chart)
 
 def fetch_user_history(user_name: str) -> list[dict]:
     """
@@ -189,9 +180,7 @@ def fetch_user_history(user_name: str) -> list[dict]:
         return []
 
 
-# -------------------------------------------------------------
-# 4. Fetch latest record for a user
-# -------------------------------------------------------------
+#4. fetch latest record for a user(for streamlit)
 
 def fetch_latest_record(user_name: str) -> dict | None:
     """
@@ -229,9 +218,7 @@ def fetch_latest_record(user_name: str) -> dict | None:
         return None
 
 
-# -------------------------------------------------------------
-# 5. Fetch all unique user names (for user selector dropdown)
-# -------------------------------------------------------------
+# 5. fetch all unique user names (for user selector dropdown)
 
 def fetch_all_users() -> list[str]:
     """
@@ -260,9 +247,7 @@ def fetch_all_users() -> list[str]:
         return []
 
 
-# -------------------------------------------------------------
-# 6. Delete a record (optional — useful for testing)
-# -------------------------------------------------------------
+# 6. delete a record(useful for testing)
 
 def delete_record(user_name: str, month_year: str) -> bool:
     """
@@ -294,9 +279,7 @@ def delete_record(user_name: str, month_year: str) -> bool:
         return False
 
 
-# -------------------------------------------------------------
-# 7. Quick connection test — run this file directly to verify
-# -------------------------------------------------------------
+#7. quick connection test
 
 def test_connection():
     """
