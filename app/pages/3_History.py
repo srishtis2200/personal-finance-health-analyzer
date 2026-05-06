@@ -1,7 +1,5 @@
 """
 pages/3_History.py
-Personal Finance Health Analyzer — History & Trends
-====================================================
 Displays month-over-month score trends for any user.
 Reads from MySQL via fetch_user_history().
 """
@@ -12,12 +10,12 @@ import os
 import plotly.graph_objects as go
 import plotly.express as px
 
-# ── Path fix ──────────────────────────────────────────────────────────────────
+#path fix
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# ── Page config ───────────────────────────────────────────────────────────────
+#page configuration
 st.set_page_config(
     page_title="History — Finance Health Analyzer",
     page_icon="📈",
@@ -25,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Global CSS ────────────────────────────────────────────────────────────────
+#global css
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap');
@@ -120,7 +118,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+#sidebar
 with st.sidebar:
     st.markdown("""
         <div style='text-align:center; padding:1rem 0 0.5rem 0;'>
@@ -149,7 +147,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+#header
 st.markdown("""
     <div class='main-header'>
         <h1>📈 Financial History & Trends</h1>
@@ -157,7 +155,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# ── Load users from DB ────────────────────────────────────────────────────────
+#load users from db
 try:
     from database.db_connect import fetch_all_users, fetch_user_history
     all_users = fetch_all_users()
@@ -181,7 +179,7 @@ if not all_users:
     """, unsafe_allow_html=True)
     st.stop()
 
-# ── User selector ─────────────────────────────────────────────────────────────
+#user selector
 st.markdown("<div class='section-header'>👤 Select User</div>", unsafe_allow_html=True)
 
 # Pre-select logged in user if available
@@ -195,14 +193,14 @@ selected_user = st.selectbox(
     label_visibility="collapsed"
 )
 
-# ── Fetch history ─────────────────────────────────────────────────────────────
+#fetch history
 history = fetch_user_history(selected_user)
 
 if not history:
     st.info(f"No history found for **{selected_user}**. Submit at least one analysis first.")
     st.stop()
 
-# ── Parse history data ────────────────────────────────────────────────────────
+#parse history data
 months     = [r["month_year"]    for r in history]
 scores     = [r["health_score"]  for r in history]
 categories = [r["risk_category"] for r in history]
@@ -215,9 +213,7 @@ point_colors = [color_map.get(c, "#1B4F8A") for c in categories]
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Summary Metrics
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>📊 Summary Statistics</div>", unsafe_allow_html=True)
 
 latest_score  = scores[-1]
@@ -244,19 +240,17 @@ with m5:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 2 — Score Trend Chart
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>📈 Score Trend Over Time</div>", unsafe_allow_html=True)
 
 fig_trend = go.Figure()
 
-# ── Shaded zone bands ─────────────────────────────────────────────────────────
+#shaded zone bands
 fig_trend.add_hrect(y0=70,  y1=100, fillcolor="#2ECC71", opacity=0.06, line_width=0, annotation_text="Stable Zone",   annotation_position="top right")
 fig_trend.add_hrect(y0=40,  y1=70,  fillcolor="#F39C12", opacity=0.06, line_width=0, annotation_text="At Risk Zone",  annotation_position="top right")
 fig_trend.add_hrect(y0=0,   y1=40,  fillcolor="#E74C3C", opacity=0.06, line_width=0, annotation_text="Critical Zone", annotation_position="top right")
 
-# ── Score line ────────────────────────────────────────────────────────────────
+#score lines
 fig_trend.add_trace(go.Scatter(
     x=months,
     y=scores,
@@ -301,9 +295,7 @@ st.plotly_chart(fig_trend, use_container_width=True)
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 3 — Expense Trends
-# ══════════════════════════════════════════════════════════════════════════════
 if len(history) >= 2:
     st.markdown("<div class='section-header'>💸 Expense Trends</div>", unsafe_allow_html=True)
 
@@ -345,9 +337,7 @@ if len(history) >= 2:
     st.plotly_chart(fig_exp, use_container_width=True)
     st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 4 — Monthly Records Table
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>🗃️ Monthly Records</div>", unsafe_allow_html=True)
 
 for i, record in enumerate(reversed(history)):   # newest first
@@ -388,9 +378,7 @@ for i, record in enumerate(reversed(history)):   # newest first
 
     st.markdown("<hr style='margin:0.4rem 0;'/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 5 — Gemini Goal Planning (from history)
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown("<div class='section-header'>🎯 AI Goal Planning (Based on Your History)</div>", unsafe_allow_html=True)
 

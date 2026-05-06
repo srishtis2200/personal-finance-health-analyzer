@@ -1,7 +1,5 @@
 """
 pages/2_Dashboard.py
-Personal Finance Health Analyzer — Dashboard
-============================================
 Displays: Health Score + Category + Confidence
           SHAP bar chart + Expense pie chart
           Gemini AI personalised advice
@@ -12,12 +10,12 @@ import streamlit as st
 import sys
 import os
 
-# ── Path fix ──────────────────────────────────────────────────────────────────
+#path fix
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# ── Page config ───────────────────────────────────────────────────────────────
+#page config
 st.set_page_config(
     page_title="Dashboard — Finance Health Analyzer",
     page_icon="📊",
@@ -25,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Global CSS ────────────────────────────────────────────────────────────────
+#global CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap');
@@ -161,7 +159,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+#sidebar
 with st.sidebar:
     st.markdown("""
         <div style='text-align:center; padding:1rem 0 0.5rem 0;'>
@@ -190,7 +188,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+#header
 st.markdown("""
     <div class='main-header'>
         <h1>📊 Your Financial Dashboard</h1>
@@ -198,7 +196,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# ── Guard — no data yet ───────────────────────────────────────────────────────
+#guard — no data yet
 if "result" not in st.session_state:
     st.markdown("""
         <div style='text-align:center; padding:3rem 1rem;'>
@@ -214,7 +212,7 @@ if "result" not in st.session_state:
     """, unsafe_allow_html=True)
     st.stop()
 
-# ── Load data from session state ──────────────────────────────────────────────
+#load data from session state
 result     = st.session_state["result"]
 advice     = st.session_state.get("advice", {})
 input_data = st.session_state.get("input_data", {})
@@ -231,15 +229,13 @@ helping    = result.get("helping_factors", [])
 shap_chart = result.get("shap_chart", None)
 expense_pie= result.get("expense_pie", None)
 
-# ── Color mapping ─────────────────────────────────────────────────────────────
+#color mapping
 color_map = {"Stable": "#2ECC71", "At Risk": "#F39C12", "Critical": "#E74C3C"}
 emoji_map = {"Stable": "✅", "At Risk": "⚠️", "Critical": "🚨"}
 color = color_map.get(category, "#1B4F8A")
 emoji = emoji_map.get(category, "📊")
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Score + Metrics
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>🎯 Financial Health Score</div>", unsafe_allow_html=True)
 
 score_col, metrics_col = st.columns([1, 2])
@@ -305,9 +301,7 @@ with metrics_col:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 2 — SHAP Charts
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>🔍 SHAP Explainability — What's Driving Your Score</div>", unsafe_allow_html=True)
 
 chart_col1, chart_col2 = st.columns(2)
@@ -324,7 +318,7 @@ with chart_col2:
     else:
         st.info("Expense chart not available.")
 
-# ── SHAP narrative ────────────────────────────────────────────────────────────
+#SHAP narrative
 if narrative:
     st.markdown("<div class='section-header'>📝 ML Model Explanation</div>", unsafe_allow_html=True)
     narr_col1, narr_col2 = st.columns(2)
@@ -361,12 +355,10 @@ if narrative:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 3 — Gemini AI Advice
-# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='section-header'>✨ Gemini AI Financial Advice</div>", unsafe_allow_html=True)
 
-# ── Advice mode tabs ──────────────────────────────────────────────────────────
+#advice mode tabs
 tab1, tab2, tab3 = st.tabs([
     "🎯 Personalised Advice",
     "📊 Monthly Summary",
@@ -473,7 +465,7 @@ with tab3:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ── Re-analyze button ─────────────────────────────────────────────────────────
+#re-analyze button
 st.markdown("""
     <div style='text-align:center; padding:1rem 0;'>
         <div style='color:#4A5568; font-size:0.9rem;'>

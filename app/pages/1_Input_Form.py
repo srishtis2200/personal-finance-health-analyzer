@@ -1,10 +1,6 @@
 """
 pages/1_Input_Form.py
-Personal Finance Health Analyzer — Input Form
-=============================================
 Collects 9 financial inputs → runs explainer → gets Gemini advice → saves to MySQL → redirects to Dashboard
-
-Fixes applied:
   1. FinanceExplainer cached with st.cache_resource — not re-instantiated every click
   2. SHAP format conversion with isinstance guard — handles both dict and tuple formats
   3. Gemini errors logged to st.session_state for dashboard visibility
@@ -17,12 +13,12 @@ import os
 import traceback
 from datetime import datetime
 
-# ── Path fix — so imports work from app/pages/ ────────────────────────────────
+#path fix — so imports work from app/pages/
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# ── Page config ───────────────────────────────────────────────────────────────
+#page config
 st.set_page_config(
     page_title="Analyze Finances — Finance Health Analyzer",
     page_icon="📝",
@@ -30,7 +26,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Global CSS ────────────────────────────────────────────────────────────────
+#global CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap');
@@ -139,7 +135,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── FIX 1: Cache explainer — load model ONCE, not on every button click ───────
+#Cache explainer — load model ONCE, not on every button click
 @st.cache_resource(show_spinner="Loading ML model...")
 def load_explainer():
     """
@@ -151,7 +147,7 @@ def load_explainer():
     return FinanceExplainer()
 
 
-# ── FIX 2: Safe SHAP format converter ────────────────────────────────────────
+#Safe SHAP format converter
 def _to_tuples(factors: list) -> list:
     """
     Convert SHAP factors to (feature, shap_value) tuples for Gemini advisor.
@@ -170,7 +166,7 @@ def _to_tuples(factors: list) -> list:
     return result
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+#sidebar
 with st.sidebar:
     st.markdown("""
         <div style='text-align:center; padding:1rem 0 0.5rem 0;'>
@@ -199,7 +195,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+#header
 st.markdown("""
     <div class='main-header'>
         <h1>📝 Analyze Your Finances</h1>
@@ -214,7 +210,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# ── User identity ─────────────────────────────────────────────────────────────
+#user identity
 st.markdown("<div class='section-header'>👤 Your Identity</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
@@ -238,7 +234,7 @@ month_year = f"{selected_year}-{month_num:02d}"
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ── Income ────────────────────────────────────────────────────────────────────
+#income
 st.markdown("<div class='section-header'>💵 Monthly Income</div>", unsafe_allow_html=True)
 
 monthly_income = st.number_input(
@@ -250,7 +246,7 @@ monthly_income = st.number_input(
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ── Expenses ──────────────────────────────────────────────────────────────────
+#expenses
 st.markdown("<div class='section-header'>💸 Monthly Expenses</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
@@ -309,7 +305,7 @@ with col2:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ── Live expense summary ──────────────────────────────────────────────────────
+#Live expense summary 
 total_expenses = rent + food + emi + transport + subscriptions
 disposable     = monthly_income - total_expenses - savings
 savings_rate   = (savings / monthly_income * 100) if monthly_income > 0 else 0
@@ -329,7 +325,7 @@ with m4:
               delta="Negative" if disposable < 0 else None,
               delta_color="inverse" if disposable < 0 else "normal")
 
-# ── FIX 4: Real-time soft warnings before submission ─────────────────────────
+#Real-time soft warnings before submission 
 if monthly_income > 0:
     if total_expenses + savings > monthly_income:
         st.markdown(f"""
@@ -356,12 +352,12 @@ if monthly_income > 0:
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 
-# ── Analyze button ────────────────────────────────────────────────────────────
+#analyze button
 analyze_clicked = st.button("🔍 Analyze My Financial Health", use_container_width=True)
 
 if analyze_clicked:
 
-    # ── FIX 4: Strong validation — all edge cases ─────────────────────────────
+    #Strong validation — all edge cases
     errors = []
 
     if not user_name.strip():
@@ -386,14 +382,14 @@ if analyze_clicked:
             st.error(f"❌ {err}")
         st.stop()
 
-    # ── Soft warning for negative disposable — allow but warn ────────────────
+    #soft warning for negative disposable — allow but warn
     if disposable < 0:
         st.warning(
             f"⚠️ Your disposable income is negative (₹{disposable:,.0f}). "
             "Proceeding with analysis — this will likely result in a Critical score."
         )
 
-    # ── Build input dict ──────────────────────────────────────────────────────
+    #build input dict
     input_data = {
         "monthly_income":        float(monthly_income),
         "rent":                  float(rent),
@@ -406,14 +402,14 @@ if analyze_clicked:
         "dependents":            int(dependents),
     }
 
-    # ── Step 1: Run ML explainer (cached — no re-instantiation) ──────────────
+    #Run ML explainer
     with st.spinner("🤖 Running ML analysis..."):
         try:
             explainer = load_explainer()          # ← FIX 1: cached, not re-created
             result    = explainer.explain(input_data)
             result["user_input"] = input_data
 
-            # FIX 2: Safe format conversion with isinstance guard
+            #Safe format conversion with isinstance guard
             result["hurting_factors"] = _to_tuples(result.get("hurting_factors", []))
             result["helping_factors"] = _to_tuples(result.get("helping_factors", []))
 
@@ -424,7 +420,7 @@ if analyze_clicked:
 
     st.success("✅ ML analysis complete!")
 
-    # ── Step 2: Get Gemini advice ─────────────────────────────────────────────
+    #Get Gemini advice
     with st.spinner("✨ Getting AI advice from Gemini..."):
         gemini_error = None
         try:
@@ -451,14 +447,14 @@ if analyze_clicked:
                 "disclaimer": "This advice is AI-generated for educational purposes only."
             }
 
-        # FIX 3: Store error in session state — Dashboard can show it if needed
+        #Store error in session state — Dashboard can show it if needed
         if gemini_error:
             st.session_state["gemini_error"] = gemini_error
             st.warning("⚠️ Gemini advice unavailable — score and charts are still accurate.")
         elif "gemini_error" in st.session_state:
             del st.session_state["gemini_error"]   # Clear old errors on success
 
-    # ── Step 3: Save to MySQL ─────────────────────────────────────────────────
+    #Save to MySQL
     with st.spinner("💾 Saving to database..."):
         try:
             from database.db_connect import insert_record
@@ -471,14 +467,14 @@ if analyze_clicked:
             st.warning(f"⚠️ Database save failed: {e}")
             st.session_state["db_error"] = traceback.format_exc()
 
-    # ── Step 4: Store in session state ───────────────────────────────────────
+    #Store in session state 
     st.session_state["result"]     = result
     st.session_state["advice"]     = advice
     st.session_state["input_data"] = input_data
     st.session_state["user_name"]  = user_name.strip()
     st.session_state["month_year"] = month_year
 
-    # ── Step 5: Score preview ─────────────────────────────────────────────────
+    #Score preview 
     score    = result.get("score", 0)
     category = result.get("category", "Unknown")
     color    = "#2ECC71" if category == "Stable" else "#F39C12" if category == "At Risk" else "#E74C3C"
