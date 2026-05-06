@@ -1,304 +1,259 @@
-# Personal Finance Health Analyzer — Phase 4
-# Handles all MySQL interactions: connect, insert, fetch
+"""
+database/db_connect.py
+Phase 4 — MySQL Database Layer (Updated for Streamlit Cloud)
+=============================================================
+Works in two environments automatically:
+  - Local development  : reads from .env via python-dotenv
+  - Streamlit Cloud    : reads from st.secrets (secrets.toml)
 
-import os
+No code changes needed when switching environments.
+"""
+
 import mysql.connector
 from mysql.connector import Error
-from dotenv import load_dotenv
-from datetime import datetime
-
-# IMPORTANT: load_dotenv() must be called BEFORE any os.getenv()
-load_dotenv()
 
 
-# 1. connection helper
+def _get_credentials() -> dict:
+    """
+    Load DB credentials from st.secrets (Streamlit Cloud)
+    or .env (local development) — automatically detected.
+    """
+    try:
+        # ── Streamlit Cloud: reads from secrets.toml ──────────────────────────
+        import streamlit as st
+        return {
+            "host":     st.secrets["DB_HOST"],
+            "user":     st.secrets["DB_USER"],
+            "password": st.secrets["DB_PASSWORD"],
+            "database": st.secrets["DB_NAME"],
+            "port":     int(st.secrets.get("DB_PORT", 3306)),
+        }
+    except Exception:
+        # ── Local development: reads from .env ────────────────────────────────
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        return {
+            "host":     os.getenv("DB_HOST", "127.0.0.1"),
+            "user":     os.getenv("DB_USER", "root"),
+            "password": os.getenv("DB_PASSWORD", ""),
+            "database": os.getenv("DB_NAME", "finance_db"),
+            "port":     int(os.getenv("DB_PORT", 3306)),
+        }
+
 
 def get_connection():
     """
-    Creates and returns a MySQL connection using .env credentials.
-    Always call .close() on the returned connection when done,
-    or use it as a context manager.
-
-    Returns:
-        mysql.connector.connection.MySQLConnection | None
+    Opens and returns a MySQL connection.
+    Uses TCP/IP (use_pure=True) to avoid Windows named pipe issues.
+    Works for both local MySQL and Clever Cloud MySQL.
     """
+    creds = _get_credentials()
     try:
         conn = mysql.connector.connect(
-        host="127.0.0.1",
-        port=3306,
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "finance_db"),
-        use_pure=True,
-        connection_timeout=10,
-        autocommit=False
+            host=             creds["host"],
+            user=             creds["user"],
+            password=         creds["password"],
+            database=         creds["database"],
+            port=             creds["port"],
+            use_pure=         True,       # Force TCP/IP — fixes Windows named pipe bug
+            connection_timeout=10,        # Fail fast instead of hanging
+            ssl_disabled=     False,      # Clever Cloud requires SSL
         )
-        
-        if conn.is_connected():
-            return conn
+        return conn
     except Error as e:
-        print(f"[DB ERROR] Could not connect to MySQL: {e}")
-        return None
+        raise ConnectionError(f"MySQL connection failed: {e}")
 
 
-#inserting a new financial record
-
-def insert_record(user_name: str, month_year: str, inputs: dict, result: dict) -> bool:
+def insert_record(user_name: str, month_year: str, input_data: dict, result: dict) -> bool:
     """
-    Inserts one submission into finance_records.
+    Save one form submission to the database.
+    If the user already submitted for this month, overwrites (UPSERT).
 
-    Args:
-        user_name  : str  — the name entered in the Streamlit form
-        month_year : str  — e.g. "May-2025"  (format: "Mon-YYYY")
-        inputs     : dict — the 9 raw features from the form
-                     Keys: monthly_income, rent, food, emi, transport,
-                           subscriptions, savings, emergency_fund, dependents
-        result     : dict — the full dict returned by explainer.explain()
-                     Must contain: score, category, confidence, probabilities
-                     probabilities keys: 'At Risk', 'Critical', 'Stable'
+    Parameters
+    ----------
+    user_name  : str   e.g. "Rahul"
+    month_year : str   e.g. "2024-12"
+    input_data : dict  the 9 raw inputs from the form
+    result     : dict  the full output dict from explainer.py
 
-    Returns:
-        True on success, False on failure.
+    Returns True on success, False on failure.
     """
-    conn = get_connection()
-    if conn is None:
-        return False
-
     sql = """
         INSERT INTO finance_records (
             user_name, month_year,
             monthly_income, rent, food, emi, transport,
-            subscriptions, savings, emergency_fund, dependents,
-            health_score, category, confidence,
-            prob_stable, prob_at_risk, prob_critical
+            subscriptions, savings, emergency_fund_months, dependents,
+            health_score, risk_category, confidence
         ) VALUES (
             %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s,
-            %s, %s, %s,
             %s, %s, %s
         )
         ON DUPLICATE KEY UPDATE
-            monthly_income  = VALUES(monthly_income),
-            rent            = VALUES(rent),
-            food            = VALUES(food),
-            emi             = VALUES(emi),
-            transport       = VALUES(transport),
-            subscriptions   = VALUES(subscriptions),
-            savings         = VALUES(savings),
-            emergency_fund  = VALUES(emergency_fund),
-            dependents      = VALUES(dependents),
-            health_score    = VALUES(health_score),
-            category        = VALUES(category),
-            confidence      = VALUES(confidence),
-            prob_stable     = VALUES(prob_stable),
-            prob_at_risk    = VALUES(prob_at_risk),
-            prob_critical   = VALUES(prob_critical),
-            created_at      = CURRENT_TIMESTAMP
+            monthly_income        = VALUES(monthly_income),
+            rent                  = VALUES(rent),
+            food                  = VALUES(food),
+            emi                   = VALUES(emi),
+            transport             = VALUES(transport),
+            subscriptions         = VALUES(subscriptions),
+            savings               = VALUES(savings),
+            emergency_fund_months = VALUES(emergency_fund_months),
+            dependents            = VALUES(dependents),
+            health_score          = VALUES(health_score),
+            risk_category         = VALUES(risk_category),
+            confidence            = VALUES(confidence)
     """
-    #on duplicate key update allows re-submitting the same month
-    #overwrites previous entry for that user+month
-
-    probs = result.get("probabilities", {})
-
     values = (
-        user_name.strip(),
-        month_year.strip(),
-        float(inputs["monthly_income"]),
-        float(inputs["rent"]),
-        float(inputs["food"]),
-        float(inputs["emi"]),
-        float(inputs["transport"]),
-        float(inputs["subscriptions"]),
-        float(inputs["savings"]),
-        float(inputs["emergency_fund"]),
-        int(inputs["dependents"]),
-        int(result["score"]),
-        result["category"],
-        float(result["confidence"]),
-        float(probs.get("Stable", 0.0)),
-        float(probs.get("At Risk", 0.0)),
-        float(probs.get("Critical", 0.0)),
+        user_name,
+        month_year,
+        input_data.get("monthly_income"),
+        input_data.get("rent"),
+        input_data.get("food"),
+        input_data.get("emi"),
+        input_data.get("transport"),
+        input_data.get("subscriptions"),
+        input_data.get("savings"),
+        input_data.get("emergency_fund_months"),
+        input_data.get("dependents"),
+        result.get("score"),
+        result.get("category"),
+        round(result.get("confidence", 0), 4),
     )
 
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(sql, values)
         conn.commit()
-        cursor.close()
-        conn.close()
-        print(f"[DB] Record saved — {user_name} / {month_year} / Score: {result['score']}")
         return True
     except Error as e:
-        print(f"[DB ERROR] insert_record failed: {e}")
-        conn.rollback()
-        conn.close()
+        print(f"[DB] insert_record failed: {e}")
         return False
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 
-# 3. fetch full history for a user (for History page chart)
-
-def fetch_user_history(user_name: str) -> list[dict]:
+def fetch_user_history(user_name: str) -> list:
     """
-    Returns all records for a user, ordered by created_at ascending.
-    Used by the Phase 6 History page to plot month-over-month trend.
+    Fetch all monthly records for a user, ordered oldest → newest.
+    Used for month-over-month trend charts and Gemini monthly_summary / goal_planning.
 
-    Args:
-        user_name : str — exact match on user_name column
-
-    Returns:
-        List of dicts, each dict = one row.
-        Empty list if no records found or on error.
+    Returns list of dicts, e.g.:
+    [
+        {"month_year": "2024-10", "health_score": 38, "risk_category": "Critical", ...},
+        {"month_year": "2024-11", "health_score": 42, "risk_category": "At Risk",  ...},
+    ]
     """
-    conn = get_connection()
-    if conn is None:
-        return []
-
     sql = """
         SELECT
-            id, user_name, month_year,
+            month_year, health_score, risk_category, confidence,
             monthly_income, rent, food, emi, transport,
-            subscriptions, savings, emergency_fund, dependents,
-            health_score, category, confidence,
-            prob_stable, prob_at_risk, prob_critical,
+            subscriptions, savings, emergency_fund_months, dependents,
             created_at
         FROM finance_records
         WHERE user_name = %s
-        ORDER BY created_at ASC
+        ORDER BY month_year ASC
     """
-
+    conn = None
     try:
-        cursor = conn.cursor(dictionary=True)   # returns rows as dicts
-        cursor.execute(sql, (user_name.strip(),))
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return rows
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)   # Returns list of dicts
+        cursor.execute(sql, (user_name,))
+        return cursor.fetchall()
     except Error as e:
-        print(f"[DB ERROR] fetch_user_history failed: {e}")
-        conn.close()
+        print(f"[DB] fetch_user_history failed: {e}")
         return []
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
-
-#4. fetch latest record for a user(for streamlit)
 
 def fetch_latest_record(user_name: str) -> dict | None:
     """
-    Returns the single most recent record for a user.
-    Useful for showing "last submission" summary on the dashboard.
+    Fetch only the most recent submission for a user.
+    Used to pre-fill the form with last month's values.
 
-    Args:
-        user_name : str
-
-    Returns:
-        A single dict (one row), or None if not found / error.
+    Returns a dict or None if no records exist.
     """
-    conn = get_connection()
-    if conn is None:
-        return None
-
     sql = """
         SELECT *
         FROM finance_records
         WHERE user_name = %s
-        ORDER BY created_at DESC
+        ORDER BY month_year DESC
         LIMIT 1
     """
-
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute(sql, (user_name.strip(),))
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return row    # None if no records exist
+        cursor.execute(sql, (user_name,))
+        return cursor.fetchone()
     except Error as e:
-        print(f"[DB ERROR] fetch_latest_record failed: {e}")
-        conn.close()
+        print(f"[DB] fetch_latest_record failed: {e}")
         return None
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 
-# 5. fetch all unique user names (for user selector dropdown)
-
-def fetch_all_users() -> list[str]:
+def fetch_all_users() -> list:
     """
-    Returns a sorted list of all distinct user_name values.
-    Used to populate a user selector in Streamlit sidebar.
+    Fetch list of all unique user names.
+    Used to populate the user dropdown on the History page.
 
-    Returns:
-        List of strings. Empty list on error.
+    Returns list of strings, e.g. ["Rahul", "Priya", "Amit"]
     """
-    conn = get_connection()
-    if conn is None:
-        return []
-
     sql = "SELECT DISTINCT user_name FROM finance_records ORDER BY user_name ASC"
-
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(sql)
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return [row[0] for row in rows]
+        return [row[0] for row in cursor.fetchall()]
     except Error as e:
-        print(f"[DB ERROR] fetch_all_users failed: {e}")
-        conn.close()
+        print(f"[DB] fetch_all_users failed: {e}")
         return []
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
-
-# 6. delete a record(useful for testing)
 
 def delete_record(user_name: str, month_year: str) -> bool:
     """
-    Deletes a specific user+month record.
-    Only useful during testing — not exposed in the UI.
+    Delete a specific record. For testing/admin only.
 
-    Returns:
-        True on success, False on failure.
+    Returns True on success, False on failure.
     """
-    conn = get_connection()
-    if conn is None:
-        return False
-
     sql = "DELETE FROM finance_records WHERE user_name = %s AND month_year = %s"
-
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute(sql, (user_name.strip(), month_year.strip()))
+        cursor.execute(sql, (user_name, month_year))
         conn.commit()
-        affected = cursor.rowcount
-        cursor.close()
-        conn.close()
-        print(f"[DB] Deleted {affected} record(s) for {user_name} / {month_year}")
-        return affected > 0
+        return cursor.rowcount > 0
     except Error as e:
-        print(f"[DB ERROR] delete_record failed: {e}")
-        conn.rollback()
-        conn.close()
+        print(f"[DB] delete_record failed: {e}")
         return False
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 
-#7. quick connection test
-
-def test_connection():
+def test_connection() -> bool:
     """
-    Run `python database/db_connect.py` to verify MySQL is reachable.
+    Quick health check — returns True if DB is reachable.
+    Useful for debugging deployment issues.
     """
-    conn = get_connection()
-    if conn:
-        print("[DB] ✅ Connection successful!")
-        print(f"     Host     : {os.getenv('DB_HOST', 'localhost')}")
-        print(f"     Database : {os.getenv('DB_NAME', 'finance_db')}")
-        print(f"     User     : {os.getenv('DB_USER', 'root')}")
-        conn.close()
-    else:
-        print("[DB] ❌ Connection FAILED. Check:")
-        print("     1. MySQL service is running (Services > MySQL80)")
-        print("     2. .env file exists with DB_HOST, DB_USER, DB_PASSWORD, DB_NAME")
-        print("     3. load_dotenv() is being called (already done in this file)")
-        print("     4. Database 'finance_db' exists (run schema.sql first)")
-
-
-if __name__ == "__main__":
-    test_connection()
+    try:
+        conn = get_connection()
+        if conn.is_connected():
+            conn.close()
+            return True
+    except Exception as e:
+        print(f"[DB] Connection test failed: {e}")
+    return False
