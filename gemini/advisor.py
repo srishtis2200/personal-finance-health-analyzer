@@ -1,7 +1,6 @@
 """
 gemini/advisor.py
 Phase 5 — Google Gemini AI Financial Advisor
-=============================================
 Uses the new google-genai SDK (v1.75.0+)
 
 One function, three modes:
@@ -21,7 +20,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Configure Gemini client once at import time ───────────────────────────────
+#configure Gemini client once at import time 
 _API_KEY = os.getenv("GEMINI_API_KEY")
 if not _API_KEY:
     raise EnvironmentError(
@@ -38,7 +37,7 @@ except ImportError:
     raise ImportError("google-genai package not found. Run: pip install google-genai")
 
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+#internal helpers
 
 def _income_bracket(monthly_income: float) -> str:
     if monthly_income < 20000:
@@ -143,7 +142,7 @@ def _parse_gemini_response(raw_text: str, mode: str) -> dict:
     }
 
 
-# ── Prompt builders ───────────────────────────────────────────────────────────
+#prompt builders
 
 def _build_personalised_prompt(result_dict: dict) -> str:
     score      = _safe_get(result_dict, "score", "N/A")
@@ -282,7 +281,7 @@ Rules: Base timeline on actual trend. Use Indian instruments (SIP, PPF, FD). Mil
 """.strip()
 
 
-# ── Main public function ──────────────────────────────────────────────────────
+#main public function 
 
 def get_advice(
     result_dict: dict,
