@@ -35,11 +35,10 @@ FEATURE_LABELS = {
 }
 
 SCORE_WEIGHTS  = {'Stable': 1.0, 'At Risk': 0.5, 'Critical': 0.0}
-POSITIVE_COLOR = '#10B981'
-NEGATIVE_COLOR = '#EF4444'
+POSITIVE_COLOR = '#10B981'   # green — helping
+NEGATIVE_COLOR = '#EF4444'   # red   — hurting
 
 
-# ═══════════════════════════════════════════════════════
 class FinanceExplainer:
 
     def __init__(self):
@@ -84,7 +83,6 @@ class FinanceExplainer:
             raise ValueError(f"Unknown SHAP shape: {arr.shape}")
 
 
-    #
     def _extract_factors(self, shap_matrix, pred, pred_label):
         sv        = shap_matrix[:, pred].flatten()
         total_abs = np.sum(np.abs(sv)) + 1e-9
@@ -137,14 +135,31 @@ class FinanceExplainer:
         return lines
 
 
-    #shap chart
-    def _build_shap_chart(self, shap_vals):
+    # ── FIX: category-aware SHAP chart colors ────────────────────────────────
+    def _build_shap_chart(self, shap_vals, pred_label):
+        """
+        Color logic depends on predicted category:
+
+        Stable:
+          Positive SHAP → pushes toward Stable → HELPING → green
+          Negative SHAP → pushes away from Stable → HURTING → red
+
+        At Risk / Critical:
+          Positive SHAP → pushes toward At Risk/Critical → HURTING → red
+          Negative SHAP → pushes away from At Risk/Critical → HELPING → green
+        """
         sv     = np.array(shap_vals).flatten()
         order  = np.argsort(sv)
         sv_ord = sv[order]
 
         labels = [FEATURE_LABELS[RAW_FEATURES[i]] for i in order]
-        colors = [NEGATIVE_COLOR if v > 0 else POSITIVE_COLOR for v in sv_ord]
+
+        if pred_label == 'Stable':
+            # Positive = helping (green), Negative = hurting (red)
+            colors = [POSITIVE_COLOR if v > 0 else NEGATIVE_COLOR for v in sv_ord]
+        else:
+            # Positive = hurting (red), Negative = helping (green)
+            colors = [NEGATIVE_COLOR if v > 0 else POSITIVE_COLOR for v in sv_ord]
 
         fig = go.Figure(go.Bar(
             x=sv_ord,
@@ -161,8 +176,6 @@ class FinanceExplainer:
 
     #expense pie chart
     def _build_expense_pie(self, user_input):
-        # FIX: added savings and disposable so pie = 100% of income
-        # without these, pie only showed ~60-70% and was misleading
         income    = float(user_input['monthly_income'])
         rent      = float(user_input['rent'])
         food      = float(user_input['food'])
@@ -210,10 +223,10 @@ class FinanceExplainer:
 
         narrative = self._generate_narrative(hurting, helping, user_input)
 
-        shap_chart  = self._build_shap_chart(shap_vals)
+        # ── FIX: pass label to chart builder ─────────────────────────────────
+        shap_chart  = self._build_shap_chart(shap_vals, label)
         expense_pie = self._build_expense_pie(user_input)
 
-        # FIX: added back 4 missing keys needed for Phase 5 and Phase 6
         return {
             'score':           score,
             'category':        label,
@@ -257,6 +270,5 @@ if __name__ == "__main__":
     for line in result['narrative']:
         print(" ", line)
 
-    # 🔥 SHOW CHARTS
     result['shap_chart'].show()
     result['expense_pie'].show()
