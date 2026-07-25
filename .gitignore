@@ -4,8 +4,6 @@ venv/
 # Environment variables - contains API keys
 .env
 
-# Trained model files
-*.pkl
 
 # Raw data - too large for GitHub
 data/raw/
